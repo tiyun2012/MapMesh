@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Layer Modifiers UI (PySide6) - Pro UX version
-- Group is a "card" (QFrame) with a real header bar (no QGroupBox title float)
+Layer Modifiers UI (PySide6) - Pro UX + Inline Rename (Layer + Group)
+- Group is a "card" (QFrame) with header bar (no QGroupBox floating title)
 - Drag ONLY from the handle
 - Clear drop indicator line
 - Selection highlight
-- F2 rename, Delete remove (with confirm)
+- Inline rename for Layer + Group
+    * Double click name OR F2 (layer) OR context menu OR pencil button
+    * Enter/FocusOut commits, Esc cancels
+- Delete with confirm (Del / menu / X button)
 - Search filter
 - Collapse groups
 
-Tested structure-wise for Maya + PySide6 (MayaQWidgetDockableMixin)
+Maya: MayaQWidgetDockableMixin + PySide6
 """
 
 from PySide6 import QtWidgets, QtCore, QtGui
@@ -18,7 +21,7 @@ import maya.cmds as cmds
 
 
 # ------------------------------------------------------------
-# Layer Widget
+# Layer Widget (Inline Rename)
 # ------------------------------------------------------------
 class LayerWidget(QtWidgets.QWidget):
     clicked = QtCore.Signal(object)          # emits self
@@ -30,6 +33,8 @@ class LayerWidget(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         self.setObjectName("LayerWidget")
         self.setProperty("selected", False)
+        self.drag_start_pos = None
+        self._rename_before_text = layer_name
 
         self.setStyleSheet("""
             #LayerWidget {
@@ -52,8 +57,6 @@ class LayerWidget(QtWidgets.QWidget):
             }
         """)
 
-        self.drag_start_pos = None
-
         # Layout
         self.main_layout = QtWidgets.QHBoxLayout(self)
         self.main_layout.setContentsMargins(8, 6, 8, 6)
@@ -71,10 +74,30 @@ class LayerWidget(QtWidgets.QWidget):
         """)
         self.drag_handle.installEventFilter(self)
 
-        # Layer label
+        # --- Inline editable layer name: QLabel + QLineEdit via stacked widget ---
+        self.name_stack = QtWidgets.QStackedWidget()
+        self.name_stack.setFixedHeight(18)
+
         self.label = QtWidgets.QLabel(layer_name)
         self.label.setStyleSheet("font-weight: 700;")
         self.label.setCursor(QtCore.Qt.PointingHandCursor)
+
+        self.name_edit = QtWidgets.QLineEdit(layer_name)
+        self.name_edit.setStyleSheet("""
+            QLineEdit{
+                background:#1f1f1f;
+                border:1px solid #4aa3ff;
+                border-radius:4px;
+                padding:2px 6px;
+                color:#eaeaea;
+                font-weight:700;
+            }
+        """)
+        self.name_edit.hide()
+
+        self.name_stack.addWidget(self.label)     # index 0
+        self.name_stack.addWidget(self.name_edit) # index 1
+        self.name_stack.setCurrentWidget(self.label)
 
         # Weight readout (local | real)
         self.value_label = QtWidgets.QLabel("")
@@ -106,7 +129,7 @@ class LayerWidget(QtWidgets.QWidget):
             }
         """)
 
-        # Buttons (rename/delete) to feel pro
+        # Buttons (rename/delete)
         self.btn_rename = QtWidgets.QToolButton()
         self.btn_rename.setText("✎")
         self.btn_rename.setToolTip("Rename (F2)")
@@ -124,8 +147,9 @@ class LayerWidget(QtWidgets.QWidget):
                 QToolButton:hover { background:#4a4a4a; color:#ffffff; }
             """)
 
+        # Layout add
         self.main_layout.addWidget(self.drag_handle)
-        self.main_layout.addWidget(self.label)
+        self.main_layout.addWidget(self.name_stack)
         self.main_layout.addStretch()
         self.main_layout.addWidget(self.value_label)
         self.main_layout.addWidget(self.slider)
@@ -137,19 +161,25 @@ class LayerWidget(QtWidgets.QWidget):
         self.btn_delete.clicked.connect(lambda: self.request_delete.emit(self))
         self.btn_rename.clicked.connect(lambda: self.request_rename.emit(self))
 
+        # Inline editor signals
+        self.name_edit.editingFinished.connect(self.commit_inline_rename)
+        self.name_edit.installEventFilter(self)  # for Esc
+
         # Context menu
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
 
-        # Init
+        # Init display
         self.on_slider_change(self.slider.value())
 
+    # -------- selection ----------
     def set_selected(self, state: bool):
         self.setProperty("selected", state)
         self.style().unpolish(self)
         self.style().polish(self)
         self.update()
 
+    # -------- weights ----------
     def get_layer_weight(self):
         return self.slider.value() / 100.0
 
@@ -170,26 +200,59 @@ class LayerWidget(QtWidgets.QWidget):
         self.value_label.setText(f"{local_val:.2f} | {real_val:.2f}")
         self.slider.setToolTip(f"Local: {local_val:.2f}\nReal: {real_val:.2f}")
 
-    # Selection click
+    # -------- inline rename (layer) ----------
+    def begin_inline_rename(self):
+        self._rename_before_text = self.label.text()
+        self.name_edit.setText(self._rename_before_text)
+        self.name_stack.setCurrentWidget(self.name_edit)
+        self.name_edit.show()
+        self.name_edit.setFocus()
+        self.name_edit.selectAll()
+
+    def commit_inline_rename(self):
+        if self.name_stack.currentWidget() is not self.name_edit:
+            return
+        new_name = self.name_edit.text().strip()
+        if new_name:
+            self.label.setText(new_name)
+        self.name_stack.setCurrentWidget(self.label)
+        self.name_edit.hide()
+
+    def cancel_inline_rename(self):
+        if self.name_stack.currentWidget() is not self.name_edit:
+            return
+        self.label.setText(self._rename_before_text)
+        self.name_stack.setCurrentWidget(self.label)
+        self.name_edit.hide()
+
+    # -------- mouse ----------
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
             self.clicked.emit(self)
         super().mousePressEvent(event)
 
-    # Double click rename
     def mouseDoubleClickEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
-            self.request_rename.emit(self)
+            self.begin_inline_rename()
         super().mouseDoubleClickEvent(event)
 
+    # -------- menu ----------
     def show_context_menu(self, pos):
         menu = QtWidgets.QMenu(self)
         menu.addAction("Rename Layer").triggered.connect(lambda: self.request_rename.emit(self))
         menu.addAction("Delete Layer").triggered.connect(lambda: self.request_delete.emit(self))
         menu.exec_(self.mapToGlobal(pos))
 
-    # Drag ONLY via handle
+    # -------- event filter (drag handle + Esc cancel) ----------
     def eventFilter(self, obj, event):
+        # Esc cancels inline rename
+        if obj is self.name_edit and event.type() == QtCore.QEvent.KeyPress:
+            if event.key() == QtCore.Qt.Key_Escape:
+                self.cancel_inline_rename()
+                return True
+            return False
+
+        # Drag only via handle
         if obj is self.drag_handle:
             if event.type() == QtCore.QEvent.MouseButtonPress and event.button() == QtCore.Qt.LeftButton:
                 self.drag_start_pos = event.position().toPoint()
@@ -221,7 +284,7 @@ class LayerWidget(QtWidgets.QWidget):
 
 
 # ------------------------------------------------------------
-# Group Widget (PRO CARD)
+# Group Widget (PRO CARD + Inline Rename Group Title)
 # ------------------------------------------------------------
 class GroupWidget(QtWidgets.QFrame):
     def __init__(self, group_name, parent=None):
@@ -230,7 +293,7 @@ class GroupWidget(QtWidgets.QFrame):
         self.setAcceptDrops(True)
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Maximum)
 
-        # Shadow (optional)
+        # Optional shadow (disable if you see performance issues in Maya)
         shadow = QtWidgets.QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(18)
         shadow.setOffset(0, 2)
@@ -287,6 +350,9 @@ class GroupWidget(QtWidgets.QFrame):
         self._selected_layer = None
         self._collapsed = False
 
+        # Inline rename state
+        self._group_title_before = group_name
+
         root = QtWidgets.QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
@@ -303,8 +369,37 @@ class GroupWidget(QtWidgets.QFrame):
         self.collapse_btn.setToolTip("Collapse / Expand")
         self.collapse_btn.clicked.connect(self.toggle_collapsed)
 
+        # --- Inline editable group title (QLabel + QLineEdit) ---
+        self.title_stack = QtWidgets.QStackedWidget()
+        self.title_stack.setFixedHeight(20)
+
         self.title_label = QtWidgets.QLabel(group_name)
         self.title_label.setObjectName("GroupTitle")
+        self.title_label.setCursor(QtCore.Qt.PointingHandCursor)
+
+        self.title_edit = QtWidgets.QLineEdit(group_name)
+        self.title_edit.setStyleSheet("""
+            QLineEdit{
+                background:#1f1f1f;
+                border:1px solid #4aa3ff;
+                border-radius:6px;
+                padding:3px 8px;
+                color:#eaeaea;
+                font-weight:800;
+                font-size:12px;
+            }
+        """)
+        self.title_edit.hide()
+
+        self.title_stack.addWidget(self.title_label)  # 0
+        self.title_stack.addWidget(self.title_edit)   # 1
+        self.title_stack.setCurrentWidget(self.title_label)
+
+        self.title_edit.editingFinished.connect(self.commit_inline_group_rename)
+        self.title_edit.installEventFilter(self)  # Esc cancel
+
+        # Double click group title label to rename
+        self.title_label.mouseDoubleClickEvent = lambda e: self.begin_inline_group_rename()
 
         self.sub_label = QtWidgets.QLabel("Modifiers")
         self.sub_label.setObjectName("GroupSub")
@@ -340,7 +435,7 @@ class GroupWidget(QtWidgets.QFrame):
         self.add_layer_btn.clicked.connect(self.add_layer)
 
         hl.addWidget(self.collapse_btn)
-        hl.addWidget(self.title_label)
+        hl.addWidget(self.title_stack)
         hl.addWidget(self.sub_label)
         hl.addStretch()
         hl.addWidget(self.weight_label)
@@ -381,6 +476,38 @@ class GroupWidget(QtWidgets.QFrame):
 
         self.on_group_slider_change(self.group_slider.value())
 
+    # -------- inline rename (group) ----------
+    def begin_inline_group_rename(self):
+        self._group_title_before = self.title_label.text()
+        self.title_edit.setText(self._group_title_before)
+        self.title_stack.setCurrentWidget(self.title_edit)
+        self.title_edit.show()
+        self.title_edit.setFocus()
+        self.title_edit.selectAll()
+
+    def commit_inline_group_rename(self):
+        if self.title_stack.currentWidget() is not self.title_edit:
+            return
+        new_name = self.title_edit.text().strip()
+        if new_name:
+            self.title_label.setText(new_name)
+        self.title_stack.setCurrentWidget(self.title_label)
+        self.title_edit.hide()
+
+    def cancel_inline_group_rename(self):
+        if self.title_stack.currentWidget() is not self.title_edit:
+            return
+        self.title_label.setText(self._group_title_before)
+        self.title_stack.setCurrentWidget(self.title_label)
+        self.title_edit.hide()
+
+    def eventFilter(self, obj, event):
+        if obj is self.title_edit and event.type() == QtCore.QEvent.KeyPress:
+            if event.key() == QtCore.Qt.Key_Escape:
+                self.cancel_inline_group_rename()
+                return True
+        return super().eventFilter(obj, event)
+
     # -------- selection ----------
     def set_selected_layer(self, layer: LayerWidget):
         if self._selected_layer and self._selected_layer is not layer:
@@ -409,7 +536,6 @@ class GroupWidget(QtWidgets.QFrame):
         self.group_value.setText(f"{group_val:.2f}")
         self.group_slider.setToolTip(f"Group Weight: {group_val:.2f}")
 
-        # refresh child readouts/tooltips
         for i in range(self.layers_layout.count()):
             w = self.layers_layout.itemAt(i).widget()
             if isinstance(w, LayerWidget):
@@ -423,9 +549,7 @@ class GroupWidget(QtWidgets.QFrame):
         menu.exec_(self.mapToGlobal(pos))
 
     def rename_group(self):
-        new_name, ok = QtWidgets.QInputDialog.getText(self, "Rename Group", "New Name:", text=self.title_label.text())
-        if ok and new_name:
-            self.title_label.setText(new_name)
+        self.begin_inline_group_rename()
 
     def delete_group(self):
         resp = QtWidgets.QMessageBox.question(
@@ -449,7 +573,7 @@ class GroupWidget(QtWidgets.QFrame):
 
         layer.clicked.connect(self.set_selected_layer)
         layer.request_delete.connect(self.delete_layer)
-        layer.request_rename.connect(self.rename_layer)
+        layer.request_rename.connect(lambda lw=layer: lw.begin_inline_rename())
 
         layer.on_slider_change(layer.slider.value())
 
@@ -459,11 +583,6 @@ class GroupWidget(QtWidgets.QFrame):
         layer = LayerWidget(layer_name)
         self.layers_layout.insertWidget(0, layer)
         self._wire_layer(layer)
-
-    def rename_layer(self, layer: LayerWidget):
-        new_name, ok = QtWidgets.QInputDialog.getText(self, "Rename Layer", "New Name:", text=layer.label.text())
-        if ok and new_name:
-            layer.label.setText(new_name)
 
     def delete_layer(self, layer: LayerWidget):
         resp = QtWidgets.QMessageBox.question(
@@ -478,6 +597,10 @@ class GroupWidget(QtWidgets.QFrame):
         layer.setParent(None)
         layer.deleteLater()
 
+    # Used by main window shortcut F2
+    def rename_layer(self, layer: LayerWidget):
+        layer.begin_inline_rename()
+
     # -------- drag & drop ----------
     def dragEnterEvent(self, event):
         if event.source() and isinstance(event.source(), LayerWidget):
@@ -487,7 +610,6 @@ class GroupWidget(QtWidgets.QFrame):
 
     def dragMoveEvent(self, event):
         if event.source() and isinstance(event.source(), LayerWidget):
-            # show indicator
             target_index = self._target_index_from_pos(event.position().toPoint())
             self._show_drop_indicator(target_index)
             event.acceptProposedAction()
@@ -520,9 +642,7 @@ class GroupWidget(QtWidgets.QFrame):
         return out
 
     def _target_index_from_pos(self, pos_in_group):
-        # Convert to body-space (where layers live)
         pos = self.body.mapFrom(self, pos_in_group)
-
         layers = self._layer_widgets()
         for i, w in enumerate(layers):
             geo = w.geometry()
@@ -540,12 +660,10 @@ class GroupWidget(QtWidgets.QFrame):
         self.drop_indicator.hide()
 
     def finalize_move_layer(self, source_widget, target_index):
-        # Robust cross-group move: remove from old layout if needed
         old_group = source_widget.parent()
         if isinstance(old_group, GroupWidget) and old_group is not self:
             old_group.layers_layout.removeWidget(source_widget)
 
-        # Within same group adjust index if moving down
         current_layers = self._layer_widgets()
         if source_widget in current_layers:
             cur_index = current_layers.index(source_widget)
