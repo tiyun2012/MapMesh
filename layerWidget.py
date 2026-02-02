@@ -17,7 +17,6 @@ Maya: MayaQWidgetDockableMixin + PySide6
 
 from PySide6 import QtWidgets, QtCore, QtGui
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
-import maya.cmds as cmds
 
 
 # ------------------------------------------------------------

@@ -1,5 +1,4 @@
 #include "DualViewportUICmd.h"
-#include "DualViewportCmd.h"
 
 #include <maya/MGlobal.h>
 #include <maya/MArgDatabase.h>
