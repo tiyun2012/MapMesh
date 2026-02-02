@@ -74,21 +74,21 @@ MStatus DualViewportUICmd::doIt(const MArgList& args) {
     oss << "paneLayout -p matchMeshRoot -configuration \"vertical2\" matchMeshPane;\n";
     // Ensure each panel has its own camera so pan/zoom are independent.
     // Always create fresh, uniquely named cameras to avoid Maya auto-renaming and stale reuse.
-    oss << "global string $gMatchMeshLeftCam[];\n";
-    oss << "global string $gMatchMeshRightCam[];\n";
-    oss << "$gMatchMeshLeftCam = `camera -name \"matchMeshLeftCam\"`;\n";
-    oss << "$gMatchMeshRightCam = `camera -name \"matchMeshRightCam\"`;\n";
+    oss << "global string $gMatchMeshTargetCam[];\n";
+    oss << "global string $gMatchMeshSourceCam[];\n";
+    oss << "$gMatchMeshTargetCam = `camera -name \"matchMeshTargetCam\"`;\n";
+    oss << "$gMatchMeshSourceCam = `camera -name \"matchMeshSourceCam\"`;\n";
     // Default camera distance for both panels.
-    oss << "setAttr ($gMatchMeshLeftCam[0] + \".translateZ\") 10.853;\n";
-    oss << "setAttr ($gMatchMeshRightCam[0] + \".translateZ\") 10.853;\n";
+    oss << "setAttr ($gMatchMeshTargetCam[0] + \".translateZ\") 10.853;\n";
+    oss << "setAttr ($gMatchMeshSourceCam[0] + \".translateZ\") 10.853;\n";
     // Hide camera transforms in the scene.
-    oss << "setAttr ($gMatchMeshLeftCam[0] + \".visibility\") 0;\n";
-    oss << "setAttr ($gMatchMeshRightCam[0] + \".visibility\") 0;\n";
+    oss << "setAttr ($gMatchMeshTargetCam[0] + \".visibility\") 0;\n";
+    oss << "setAttr ($gMatchMeshSourceCam[0] + \".visibility\") 0;\n";
     oss << "modelPanel -p matchMeshPane -label \"Target Mesh\" -mbv false " << leftName.asChar() << ";\n";
-    oss << "modelEditor -e -grid false -joints false -da \"smoothShaded\" -dtx true -camera $gMatchMeshLeftCam[1] "
+    oss << "modelEditor -e -grid false -joints false -da \"smoothShaded\" -dtx true -camera $gMatchMeshTargetCam[1] "
         << leftName.asChar() << ";\n";
     oss << "modelPanel -p matchMeshPane -label \"Source Mesh\" -mbv false " << rightName.asChar() << ";\n";
-    oss << "modelEditor -e -grid false -joints false -da \"smoothShaded\" -dtx true -camera $gMatchMeshRightCam[1] "
+    oss << "modelEditor -e -grid false -joints false -da \"smoothShaded\" -dtx true -camera $gMatchMeshSourceCam[1] "
         << rightName.asChar() << ";\n";
     oss << "setParent matchMeshRoot;\n"; // end layout
     oss << "formLayout -e "

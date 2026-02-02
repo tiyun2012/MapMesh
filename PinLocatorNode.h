@@ -12,6 +12,7 @@
 #include <maya/MPxDrawOverride.h>
 #include <maya/MBoundingBox.h>
 #include <maya/M3dView.h>
+#include <maya/MSelectionMask.h>
 
 class PinLocatorNode : public MPxLocatorNode {
 public:
@@ -25,6 +26,10 @@ public:
               const MDagPath& path,
               M3dView::DisplayStyle style,
               M3dView::DisplayStatus status) override;
+
+    MSelectionMask getShapeSelectionMask() const override {
+        return MSelectionMask::kSelectLocators;
+    }
 
     static MTypeId id;
     static MString drawDbClassification;

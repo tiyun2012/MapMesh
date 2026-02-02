@@ -12,6 +12,7 @@
 #include <maya/MTransformationMatrix.h>
 #include <maya/MFnDependencyNode.h>
 #include <maya/MPlug.h>
+#include <maya/MObjectHandle.h>
 #include <maya/MHardwareRenderer.h>
 #include <maya/MGLFunctionTable.h>
 
@@ -71,9 +72,15 @@ void PinLocatorNode::draw(M3dView& view,
     MPlug tPlug(path.node(), PinLocatorNode::aPinType);
     tPlug.getValue(pinType);
 
-    const MColor srcCol(0.8f, 0.2f, 0.2f);
-    const MColor tgtCol(0.2f, 0.8f, 1.0f);
-    const MColor col = (pinType == PinLocatorNode::kSource) ? srcCol : tgtCol;
+    const MColor srcCol(1.0f, 0.35f, 0.2f);
+    const MColor tgtCol(0.2f, 0.9f, 0.35f);
+    MColor col = (pinType == PinLocatorNode::kSource) ? srcCol : tgtCol;
+    if (status == M3dView::kActive || status == M3dView::kLead || status == M3dView::kHilite) {
+        // Brighten when selected in the legacy viewport.
+        col.r = col.r + (1.0f - col.r) * 0.5f;
+        col.g = col.g + (1.0f - col.g) * 0.5f;
+        col.b = col.b + (1.0f - col.b) * 0.5f;
+    }
 
     MHardwareRenderer* renderer = MHardwareRenderer::theRenderer();
     MGLFunctionTable* glFT = renderer ? const_cast<MGLFunctionTable*>(renderer->glFunctionTable()) : nullptr;
@@ -97,7 +104,15 @@ struct PinUserData : public MUserData {
     float radius = 1.0f;
     short pinType = 0;
     MColor color;
+    bool highlight = false;
 };
+
+static MColor brightenColor(const MColor& col) {
+    return MColor(
+        col.r + (1.0f - col.r) * 0.5f,
+        col.g + (1.0f - col.g) * 0.5f,
+        col.b + (1.0f - col.b) * 0.5f);
+}
 }
 
 PinDrawOverride::PinDrawOverride(const MObject& obj)
@@ -129,9 +144,14 @@ MUserData* PinDrawOverride::prepareForDraw(const MDagPath& objPath,
     MPlug typePlug(objPath.node(), PinLocatorNode::aPinType);
     typePlug.getValue(data->pinType);
 
-    const MColor srcCol(0.8f, 0.2f, 0.2f);
-    const MColor tgtCol(0.2f, 0.8f, 1.0f);
+    const MColor srcCol(1.0f, 0.35f, 0.2f);
+    const MColor tgtCol(0.2f, 0.9f, 0.35f);
     data->color = (data->pinType == PinLocatorNode::kSource) ? srcCol : tgtCol;
+    const MHWRender::DisplayStatus drawStatus =
+        MHWRender::MGeometryUtilities::displayStatus(objPath);
+    data->highlight = (drawStatus == MHWRender::kActive ||
+                       drawStatus == MHWRender::kLead ||
+                       drawStatus == MHWRender::kHilite);
     return data;
 }
 
@@ -141,8 +161,9 @@ void PinDrawOverride::addUIDrawables(const MDagPath& objPath,
                                      const MUserData* userData) {
     const PinUserData* data = dynamic_cast<const PinUserData*>(userData);
     if (!data) return;
-    dm.beginDrawable();
-    dm.setColor(data->color);
+    const unsigned int pickId = MObjectHandle(objPath.node()).hashCode();
+    dm.beginDrawable(MHWRender::MUIDrawManager::kSelectable, pickId);
+    dm.setColor(data->highlight ? brightenColor(data->color) : data->color);
     // Draw a locator-style cross (better for selection/readability than a sphere).
     const double r = data->radius;
     dm.line(MPoint(-r, 0.0, 0.0), MPoint(r, 0.0, 0.0));

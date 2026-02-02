@@ -36,13 +36,13 @@ MStatus initializePlugin(MObject obj) {
     const char* melHelpers = R"mel(
 global proc matchMeshDeleteDualViewCams(){
   // Delete any cameras created by MatchMesh dual view.
-  string $camXforms[] = `ls -type transform "matchMeshLeftCam*" "matchMeshRightCam*"`;
+  string $camXforms[] = `ls -type transform "matchMeshLeftCam*" "matchMeshRightCam*" "matchMeshTargetCam*" "matchMeshSourceCam*"`;
   for ($c in $camXforms){
     if (`objExists $c`)
       delete $c;
   }
   // Clean up any orphan camera shapes that might remain.
-  string $camShapes[] = `ls -type camera "matchMeshLeftCam*" "matchMeshRightCam*"`;
+  string $camShapes[] = `ls -type camera "matchMeshLeftCam*" "matchMeshRightCam*" "matchMeshTargetCam*" "matchMeshSourceCam*"`;
   for ($s in $camShapes){
     if (!`objExists $s`)
       continue;

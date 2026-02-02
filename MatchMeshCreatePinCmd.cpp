@@ -15,6 +15,7 @@
 #include <maya/MItMeshVertex.h>
 #include <maya/MItSelectionList.h>
 #include <maya/MMatrix.h>
+#include <maya/MPlug.h>
 #include <maya/MSelectionList.h>
 #include <maya/MVector.h>
 #include <sstream>
@@ -26,6 +27,8 @@ const char* kTargetSetFlag = "-ts";
 const char* kTargetSetLong = "-targetSet";
 const char* kDefaultSourceSet = "MatchMeshSourceSet";
 const char* kDefaultTargetSet = "MatchMeshTargetSet";
+const char* kSourcePanelName = "matchMeshSourcePanel";
+const char* kTargetPanelName = "matchMeshTargetPanel";
 }
 
 void* MatchMeshCreatePinCmd::creator() { return new MatchMeshCreatePinCmd(); }
@@ -126,6 +129,51 @@ static bool ensureMeshShapePath(MDagPath& path) {
         return true;
     }
     return false;
+}
+
+static void addToViewSelectedSet(const MDagPath& xformPath, const char* panelName) {
+    if (!xformPath.isValid() || !panelName)
+        return;
+
+    MString setName(panelName);
+    setName += "ViewSelectedSet";
+
+    MSelectionList sl;
+    if (sl.add(setName) != MS::kSuccess)
+        return;
+
+    MObject setObj;
+    sl.getDependNode(0, setObj);
+    if (!setObj.hasFn(MFn::kSet))
+        return;
+
+    MStatus status;
+    MFnSet fnSet(setObj, &status);
+    if (status != MS::kSuccess)
+        return;
+
+    fnSet.addMember(xformPath);
+}
+
+static void renamePinNodes(const MDagPath& xformPath, const MObject& shapeObj, const char* prefix) {
+    if (!prefix)
+        return;
+
+    MStatus status;
+    MString base(prefix);
+    base += "Pin";
+
+    MFnDagNode fnXform(xformPath, &status);
+    if (status == MS::kSuccess) {
+        fnXform.setName(base);
+    }
+
+    MFnDependencyNode fnShape(shapeObj, &status);
+    if (status == MS::kSuccess) {
+        MString shapeName(base);
+        shapeName += "Shape";
+        fnShape.setName(shapeName);
+    }
 }
 
 static MStatus setTransformTranslation(const MDagPath& xformPath, const MPoint& pos) {
@@ -257,6 +305,13 @@ MStatus MatchMeshCreatePinCmd::createPinPairAtPoints(const MDagPath& srcMesh,
     status = MDagPath::getAPathTo(outTargetPin, tgtPath);
     CHECK_MSTATUS_AND_RETURN_IT(status);
 
+    MDagPath srcShapePath = srcPath;
+    if (srcShapePath.hasFn(MFn::kTransform))
+        srcShapePath.extendToShape();
+    MDagPath tgtShapePath = tgtPath;
+    if (tgtShapePath.hasFn(MFn::kTransform))
+        tgtShapePath.extendToShape();
+
     MDagPath srcXformPath = srcPath;
     if (!srcXformPath.hasFn(MFn::kTransform)) {
         if (srcXformPath.length() > 0)
@@ -277,8 +332,12 @@ MStatus MatchMeshCreatePinCmd::createPinPairAtPoints(const MDagPath& srcMesh,
         return MS::kFailure;
     }
 
-    MFnDependencyNode fnSrc(outSourcePin);
-    MFnDependencyNode fnTgt(outTargetPin);
+    // Rename transforms and shapes with source/target prefixes for easier identification.
+    renamePinNodes(srcXformPath, srcShapePath.node(), "source");
+    renamePinNodes(tgtXformPath, tgtShapePath.node(), "target");
+
+    MFnDependencyNode fnSrc(srcShapePath.node());
+    MFnDependencyNode fnTgt(tgtShapePath.node());
     fnSrc.findPlug(PinLocatorNode::aPinType, true).setShort(PinLocatorNode::kSource);
     fnTgt.findPlug(PinLocatorNode::aPinType, true).setShort(PinLocatorNode::kTarget);
 
@@ -292,6 +351,10 @@ MStatus MatchMeshCreatePinCmd::createPinPairAtPoints(const MDagPath& srcMesh,
         MGlobal::displayError("MatchMeshCreatePin: failed to set target transform translation.");
         CHECK_MSTATUS_AND_RETURN_IT(status);
     }
+
+    // If isolate-select is active, add pins to panel view-selected sets so they stay visible.
+    addToViewSelectedSet(srcXformPath, kSourcePanelName);
+    addToViewSelectedSet(tgtXformPath, kTargetPanelName);
 
     {
         MFnTransform fnSrcXform(srcXformPath);
