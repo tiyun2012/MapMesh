@@ -4,10 +4,12 @@
 #include <maya/MArgDatabase.h>
 #include <maya/MDagModifier.h>
 #include <maya/MFnDependencyNode.h>
+#include <maya/MFnDagNode.h>
 #include <maya/MFnMatrixData.h>
 #include <maya/MFnSet.h>
 #include <maya/MFnTransform.h>
 #include <maya/MGlobal.h>
+#include <maya/MRichSelection.h>
 #include <maya/MItMeshEdge.h>
 #include <maya/MItMeshPolygon.h>
 #include <maya/MItMeshVertex.h>
@@ -15,6 +17,7 @@
 #include <maya/MMatrix.h>
 #include <maya/MSelectionList.h>
 #include <maya/MVector.h>
+#include <sstream>
 
 namespace {
 const char* kSourceSetFlag = "-ss";
@@ -82,6 +85,75 @@ static MObject transformForPath(const MDagPath& path) {
     return xformPath.node();
 }
 
+static void getSelectionWithRichFallback(MSelectionList& outSel) {
+    MRichSelection rich;
+    if (MGlobal::getRichSelection(rich, true) == MS::kSuccess) {
+        rich.getSelection(outSel);
+        if (outSel.length() > 0)
+            return;
+    }
+    MGlobal::getActiveSelectionList(outSel);
+}
+
+static bool ensureMeshShapePath(MDagPath& path) {
+    if (path.hasFn(MFn::kMesh))
+        return true;
+    if (!path.hasFn(MFn::kTransform))
+        return false;
+
+    MFnDagNode fnXform(path);
+    // Prefer a non-intermediate mesh shape to match component selections.
+    for (unsigned int i = 0; i < fnXform.childCount(); ++i) {
+        MObject child = fnXform.child(i);
+        if (!child.hasFn(MFn::kMesh))
+            continue;
+        MFnDagNode fnChild(child);
+        if (fnChild.isIntermediateObject())
+            continue;
+        MDagPath childPath = path;
+        childPath.push(child);
+        path = childPath;
+        return true;
+    }
+    // Fallback: accept any mesh child if only intermediate shapes exist.
+    for (unsigned int i = 0; i < fnXform.childCount(); ++i) {
+        MObject child = fnXform.child(i);
+        if (!child.hasFn(MFn::kMesh))
+            continue;
+        MDagPath childPath = path;
+        childPath.push(child);
+        path = childPath;
+        return true;
+    }
+    return false;
+}
+
+static MStatus setTransformTranslation(const MDagPath& xformPath, const MPoint& pos) {
+    MStatus status;
+    MFnTransform fnXform(xformPath, &status);
+    if (status != MS::kSuccess)
+        return status;
+
+    status = fnXform.setTranslation(MVector(pos), MSpace::kWorld);
+    if (status != MS::kSuccess) {
+        // Fallback: set in local space if world-space fails.
+        status = fnXform.setTranslation(MVector(pos), MSpace::kTransform);
+    }
+    if (status != MS::kSuccess) {
+        // Last resort: write translate plugs directly (assumes world parent).
+        MStatus plugStatus;
+        MPlug tPlug = fnXform.findPlug("translate", true, &plugStatus);
+        if (plugStatus == MS::kSuccess && tPlug.numChildren() >= 3) {
+            tPlug.child(0).setDouble(pos.x);
+            tPlug.child(1).setDouble(pos.y);
+            tPlug.child(2).setDouble(pos.z);
+            status = MS::kSuccess;
+        }
+    }
+
+    return status;
+}
+
 bool MatchMeshCreatePinCmd::accumulateSelectedPointsOnMesh(const MDagPath& meshPath,
                                                            const MSelectionList& sel,
                                                            MPoint& outPoint) const {
@@ -98,9 +170,7 @@ bool MatchMeshCreatePinCmd::accumulateSelectedPointsOnMesh(const MDagPath& meshP
             continue;
         if (comp.isNull())
             continue;
-        if (path.hasFn(MFn::kTransform))
-            path.extendToShape();
-        if (!path.hasFn(MFn::kMesh))
+        if (!ensureMeshShapePath(path))
             continue;
         if (transformForPath(path) != meshXformObj)
             continue;
@@ -140,9 +210,7 @@ bool MatchMeshCreatePinCmd::accumulateAnySelectedComponent(const MSelectionList&
             continue;
         if (comp.isNull())
             continue;
-        if (path.hasFn(MFn::kTransform))
-            path.extendToShape();
-        if (!path.hasFn(MFn::kMesh))
+        if (!ensureMeshShapePath(path))
             continue;
 
         if (comp.apiType() == MFn::kMeshVertComponent) {
@@ -174,29 +242,69 @@ MStatus MatchMeshCreatePinCmd::createPinPairAtPoints(const MDagPath& srcMesh,
                                                      MObject& outTargetPin) const {
     MStatus status;
     MDagModifier dagMod;
-    MObject srcXform = dagMod.createNode("transform", MObject::kNullObj, &status);
+    // Create the pin shapes directly; Maya will create parent transforms.
+    outSourcePin = dagMod.createNode("MatchMeshPin", MObject::kNullObj, &status);
     CHECK_MSTATUS_AND_RETURN_IT(status);
-    outSourcePin = dagMod.createNode("MatchMeshPin", srcXform, &status);
-    CHECK_MSTATUS_AND_RETURN_IT(status);
-
-    MObject tgtXform = dagMod.createNode("transform", MObject::kNullObj, &status);
-    CHECK_MSTATUS_AND_RETURN_IT(status);
-    outTargetPin = dagMod.createNode("MatchMeshPin", tgtXform, &status);
+    outTargetPin = dagMod.createNode("MatchMeshPin", MObject::kNullObj, &status);
     CHECK_MSTATUS_AND_RETURN_IT(status);
     status = dagMod.doIt();
     CHECK_MSTATUS_AND_RETURN_IT(status);
+
+    MDagPath srcPath;
+    status = MDagPath::getAPathTo(outSourcePin, srcPath);
+    CHECK_MSTATUS_AND_RETURN_IT(status);
+    MDagPath tgtPath;
+    status = MDagPath::getAPathTo(outTargetPin, tgtPath);
+    CHECK_MSTATUS_AND_RETURN_IT(status);
+
+    MDagPath srcXformPath = srcPath;
+    if (!srcXformPath.hasFn(MFn::kTransform)) {
+        if (srcXformPath.length() > 0)
+            srcXformPath.pop();
+    }
+    MDagPath tgtXformPath = tgtPath;
+    if (!tgtXformPath.hasFn(MFn::kTransform)) {
+        if (tgtXformPath.length() > 0)
+            tgtXformPath.pop();
+    }
+
+    if (!srcXformPath.isValid() || !srcXformPath.hasFn(MFn::kTransform)) {
+        MGlobal::displayError("MatchMeshCreatePin: source transform path invalid.");
+        return MS::kFailure;
+    }
+    if (!tgtXformPath.isValid() || !tgtXformPath.hasFn(MFn::kTransform)) {
+        MGlobal::displayError("MatchMeshCreatePin: target transform path invalid.");
+        return MS::kFailure;
+    }
 
     MFnDependencyNode fnSrc(outSourcePin);
     MFnDependencyNode fnTgt(outTargetPin);
     fnSrc.findPlug(PinLocatorNode::aPinType, true).setShort(PinLocatorNode::kSource);
     fnTgt.findPlug(PinLocatorNode::aPinType, true).setShort(PinLocatorNode::kTarget);
 
-    MFnTransform fnSrcXform(srcXform, &status);
-    CHECK_MSTATUS_AND_RETURN_IT(status);
-    fnSrcXform.setTranslation(MVector(srcPos), MSpace::kWorld);
-    MFnTransform fnTgtXform(tgtXform, &status);
-    CHECK_MSTATUS_AND_RETURN_IT(status);
-    fnTgtXform.setTranslation(MVector(tgtPos), MSpace::kWorld);
+    status = setTransformTranslation(srcXformPath, srcPos);
+    if (status != MS::kSuccess) {
+        MGlobal::displayError("MatchMeshCreatePin: failed to set source transform translation.");
+        CHECK_MSTATUS_AND_RETURN_IT(status);
+    }
+    status = setTransformTranslation(tgtXformPath, tgtPos);
+    if (status != MS::kSuccess) {
+        MGlobal::displayError("MatchMeshCreatePin: failed to set target transform translation.");
+        CHECK_MSTATUS_AND_RETURN_IT(status);
+    }
+
+    {
+        MFnTransform fnSrcXform(srcXformPath);
+        MFnTransform fnTgtXform(tgtXformPath);
+        const MVector actualSrc = fnSrcXform.translation(MSpace::kWorld);
+        const MVector actualTgt = fnTgtXform.translation(MSpace::kWorld);
+        std::ostringstream oss;
+        oss << "MatchMeshCreatePin: set src=("
+            << actualSrc.x << ", " << actualSrc.y << ", " << actualSrc.z
+            << ") tgt=("
+            << actualTgt.x << ", " << actualTgt.y << ", " << actualTgt.z << ")";
+        MGlobal::displayInfo(oss.str().c_str());
+    }
 
     fnSrc.findPlug(PinLocatorNode::aPartnerMatrix, true)
         .setMObject(MFnMatrixData().create(tgtMesh.inclusiveMatrix(), &status));
@@ -224,7 +332,7 @@ MStatus MatchMeshCreatePinCmd::doIt(const MArgList& args) {
     CHECK_MSTATUS_AND_RETURN_IT(status);
 
     MSelectionList sel;
-    MGlobal::getActiveSelectionList(sel);
+    getSelectionWithRichFallback(sel);
     MPoint srcPos, tgtPos;
     bool foundSrc = accumulateSelectedPointsOnMesh(srcMesh, sel, srcPos);
     bool foundTgt = accumulateSelectedPointsOnMesh(tgtMesh, sel, tgtPos);
@@ -235,6 +343,10 @@ MStatus MatchMeshCreatePinCmd::doIt(const MArgList& args) {
             srcPos = anyPos;
             tgtPos = anyPos;
         } else {
+            if (sel.length() > 0) {
+                MGlobal::displayWarning(
+                    "MatchMesh: selection has no mesh components (verts/edges/faces).");
+            }
             // No component selection: default to origin for both pins.
             srcPos = MPoint::origin;
             tgtPos = MPoint::origin;
@@ -246,6 +358,15 @@ MStatus MatchMeshCreatePinCmd::doIt(const MArgList& args) {
     } else if (!foundSrc && foundTgt) {
         // Single-component placement: use the same position for both pins.
         srcPos = tgtPos;
+    }
+
+    {
+        std::ostringstream oss;
+        oss << "MatchMeshCreatePin: foundSrc=" << foundSrc
+            << " foundTgt=" << foundTgt
+            << " srcPos=(" << srcPos.x << ", " << srcPos.y << ", " << srcPos.z
+            << ") tgtPos=(" << tgtPos.x << ", " << tgtPos.y << ", " << tgtPos.z << ")";
+        MGlobal::displayInfo(oss.str().c_str());
     }
 
     MObject srcPin, tgtPin;

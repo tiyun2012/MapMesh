@@ -9,8 +9,8 @@
 namespace {
 const char* kCtrlName = "MatchMeshDualViewControl";
 const char* kToolbarCtrlName = "MatchMeshToolbarControl";
-const char* kLeftPanelName = "matchMeshLeftPanel";
-const char* kRightPanelName = "matchMeshRightPanel";
+const char* kLeftPanelName = "matchMeshTargetPanel";
+const char* kRightPanelName = "matchMeshSourcePanel";
 
 const char* kLeftFlag = "-l";
 const char* kLeftLong = "-leftName";
@@ -84,10 +84,10 @@ MStatus DualViewportUICmd::doIt(const MArgList& args) {
     // Hide camera transforms in the scene.
     oss << "setAttr ($gMatchMeshLeftCam[0] + \".visibility\") 0;\n";
     oss << "setAttr ($gMatchMeshRightCam[0] + \".visibility\") 0;\n";
-    oss << "modelPanel -p matchMeshPane -label \"Custom Mesh\" -mbv false " << leftName.asChar() << ";\n";
+    oss << "modelPanel -p matchMeshPane -label \"Target Mesh\" -mbv false " << leftName.asChar() << ";\n";
     oss << "modelEditor -e -grid false -joints false -da \"smoothShaded\" -dtx true -camera $gMatchMeshLeftCam[1] "
         << leftName.asChar() << ";\n";
-    oss << "modelPanel -p matchMeshPane -label \"MetaHuman\" -mbv false " << rightName.asChar() << ";\n";
+    oss << "modelPanel -p matchMeshPane -label \"Source Mesh\" -mbv false " << rightName.asChar() << ";\n";
     oss << "modelEditor -e -grid false -joints false -da \"smoothShaded\" -dtx true -camera $gMatchMeshRightCam[1] "
         << rightName.asChar() << ";\n";
     oss << "setParent matchMeshRoot;\n"; // end layout
