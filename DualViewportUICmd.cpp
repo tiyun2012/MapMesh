@@ -68,9 +68,13 @@ MStatus DualViewportUICmd::doIt(const MArgList& args) {
     oss << "iconTextButton -style \"iconOnly\" -image1 $mmPinIcon -w 36 -h 36 "
            "-ann \"Create pin (no selection = origin; one component = both; two components = source/target)\" "
            "-c \"matchMeshCreatePinFromSelection;\" matchMeshCreatePinBtn;\n";
+    oss << "rowLayout -nc 2 -cw2 60 36 -ct2 \"left\" \"left\";\n";
+    oss << "floatField -w 60 -value 0.0 -precision 2 -ann \"Debug radius\" matchMeshDbgRadius;\n";
     oss << "iconTextButton -style \"iconOnly\" -image1 $mmDbgIcon -w 36 -h 36 "
            "-ann \"Debug closest face on source mesh from selected pin\" "
-           "-c \"matchMeshDebugClosestFace -clear;\" matchMeshDebugClosestBtn;\n";
+           "-c \"float $r=`floatField -q -v matchMeshDbgRadius`; matchMeshDebugClosestFace -clear -r $r;\" "
+           "matchMeshDebugClosestBtn;\n";
+    oss << "setParent ..;\n";
     oss << "setParent ..;\n";
 
     // Main dual-view workspace control.

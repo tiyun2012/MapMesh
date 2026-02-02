@@ -10,13 +10,17 @@
 #include <maya/MFnSingleIndexedComponent.h>
 #include <maya/MFnTransform.h>
 #include <maya/MGlobal.h>
+#include <maya/MItMeshPolygon.h>
 #include <maya/MItSelectionList.h>
 #include <maya/MMatrix.h>
 #include <maya/MPlug.h>
 #include <maya/MPoint.h>
+#include <maya/MIntArray.h>
 #include <maya/MSelectionList.h>
 #include <maya/MString.h>
 #include <maya/MVector.h>
+#include <queue>
+#include <unordered_set>
 #include <sstream>
 
 namespace {
@@ -34,6 +38,10 @@ const char* kNoSelectFlag = "-ns";
 const char* kNoSelectLong = "-noSelect";
 const char* kNoLocatorFlag = "-nl";
 const char* kNoLocatorLong = "-noLocator";
+const char* kRadiusFlag = "-r";
+const char* kRadiusLong = "-radius";
+const char* kMaxDepthFlag = "-md";
+const char* kMaxDepthLong = "-maxDepth";
 
 const char* kDefaultSourceSet = "MatchMeshSourceSet";
 const char* kDefaultTargetSet = "MatchMeshTargetSet";
@@ -212,6 +220,67 @@ static MStatus createDebugLocator(const MPoint& pos, MString& outName) {
 
     return MS::kSuccess;
 }
+
+static bool isFaceWithinRadius(const MFnMesh& fnMesh,
+                               int faceId,
+                               const MPoint& center,
+                               double radius) {
+    MIntArray verts;
+    if (fnMesh.getPolygonVertices(faceId, verts) != MS::kSuccess || verts.length() == 0)
+        return false;
+
+    for (unsigned int i = 0; i < verts.length(); ++i) {
+        MPoint p;
+        if (fnMesh.getPoint(verts[i], p, MSpace::kWorld) != MS::kSuccess)
+            return false;
+        if (center.distanceTo(p) <= radius)
+            return true;
+    }
+    return false;
+}
+
+static void bfsCollectFacesWithinRadius(const MDagPath& meshPath,
+                                        const MFnMesh& fnMesh,
+                                        int startFaceId,
+                                        const MPoint& center,
+                                        double radius,
+                                        int maxDepth,
+                                        MIntArray& outFaces) {
+    std::queue<std::pair<int, int>> q;
+    std::unordered_set<int> visited;
+
+    q.push(std::make_pair(startFaceId, 0));
+    visited.insert(startFaceId);
+
+    MStatus status;
+    MItMeshPolygon polyIt(meshPath.node(), &status);
+    if (status != MS::kSuccess)
+        return;
+
+    while (!q.empty()) {
+        const int faceId = q.front().first;
+        const int depth = q.front().second;
+        q.pop();
+
+        if (isFaceWithinRadius(fnMesh, faceId, center, radius))
+            outFaces.append(faceId);
+
+        if (depth >= maxDepth)
+            continue;
+
+        int prevIndex = 0;
+        if (polyIt.setIndex(faceId, prevIndex) != MS::kSuccess)
+            continue;
+        MIntArray neighbors;
+        polyIt.getConnectedFaces(neighbors);
+        for (unsigned int i = 0; i < neighbors.length(); ++i) {
+            const int nb = neighbors[i];
+            if (visited.insert(nb).second) {
+                q.push(std::make_pair(nb, depth + 1));
+            }
+        }
+    }
+}
 }
 
 void* MatchMeshDebugClosestFaceCmd::creator() { return new MatchMeshDebugClosestFaceCmd(); }
@@ -225,6 +294,8 @@ MSyntax MatchMeshDebugClosestFaceCmd::newSyntax() {
     syntax.addFlag(kClearFlag, kClearLong);
     syntax.addFlag(kNoSelectFlag, kNoSelectLong);
     syntax.addFlag(kNoLocatorFlag, kNoLocatorLong);
+    syntax.addFlag(kRadiusFlag, kRadiusLong, MSyntax::kDouble);
+    syntax.addFlag(kMaxDepthFlag, kMaxDepthLong, MSyntax::kLong);
     return syntax;
 }
 
@@ -245,6 +316,10 @@ MStatus MatchMeshDebugClosestFaceCmd::doIt(const MArgList& args) {
     const bool clear = db.isFlagSet(kClearFlag);
     const bool noSelect = db.isFlagSet(kNoSelectFlag);
     const bool noLocator = db.isFlagSet(kNoLocatorFlag);
+    double radius = 0.0;
+    int maxDepth = 50;
+    if (db.isFlagSet(kRadiusFlag)) db.getFlagArgument(kRadiusFlag, 0, radius);
+    if (db.isFlagSet(kMaxDepthFlag)) db.getFlagArgument(kMaxDepthFlag, 0, maxDepth);
 
     MDagPath pinShapePath;
     if (pinName.length() > 0) {
@@ -305,6 +380,12 @@ MStatus MatchMeshDebugClosestFaceCmd::doIt(const MArgList& args) {
     status = fnMesh.getClosestPoint(pinPos, closestPoint, MSpace::kWorld, &faceId);
     CHECK_MSTATUS_AND_RETURN_IT(status);
 
+    MIntArray facesInRadius;
+    const bool useRadius = (radius > 0.0 && faceId >= 0);
+    if (useRadius) {
+        bfsCollectFacesWithinRadius(meshPath, fnMesh, faceId, closestPoint, radius, maxDepth, facesInRadius);
+    }
+
     const double dist = pinPos.distanceTo(closestPoint);
 
     if (clear)
@@ -316,14 +397,27 @@ MStatus MatchMeshDebugClosestFaceCmd::doIt(const MArgList& args) {
         CHECK_MSTATUS_AND_RETURN_IT(status);
     }
 
-    if (!noSelect && faceId >= 0) {
-        MFnSingleIndexedComponent compFn;
-        MObject compObj = compFn.create(MFn::kMeshPolygonComponent, &status);
-        CHECK_MSTATUS_AND_RETURN_IT(status);
-        compFn.addElement(faceId);
-        MSelectionList faceSel;
-        faceSel.add(meshPath, compObj);
-        MGlobal::setActiveSelectionList(faceSel, MGlobal::kReplaceList);
+    if (!noSelect) {
+        if (useRadius) {
+            if (facesInRadius.length() > 0) {
+                MFnSingleIndexedComponent compFn;
+                MObject compObj = compFn.create(MFn::kMeshPolygonComponent, &status);
+                CHECK_MSTATUS_AND_RETURN_IT(status);
+                for (unsigned int i = 0; i < facesInRadius.length(); ++i)
+                    compFn.addElement(facesInRadius[i]);
+                MSelectionList faceSel;
+                faceSel.add(meshPath, compObj);
+                MGlobal::setActiveSelectionList(faceSel, MGlobal::kReplaceList);
+            }
+        } else if (faceId >= 0) {
+            MFnSingleIndexedComponent compFn;
+            MObject compObj = compFn.create(MFn::kMeshPolygonComponent, &status);
+            CHECK_MSTATUS_AND_RETURN_IT(status);
+            compFn.addElement(faceId);
+            MSelectionList faceSel;
+            faceSel.add(meshPath, compObj);
+            MGlobal::setActiveSelectionList(faceSel, MGlobal::kReplaceList);
+        }
     }
 
     std::ostringstream oss;
@@ -332,6 +426,10 @@ MStatus MatchMeshDebugClosestFaceCmd::doIt(const MArgList& args) {
         << " face=" << faceId
         << " closest=(" << closestPoint.x << ", " << closestPoint.y << ", " << closestPoint.z << ")"
         << " dist=" << dist;
+    if (useRadius) {
+        oss << " radius=" << radius << " maxDepth=" << maxDepth
+            << " faces=" << facesInRadius.length();
+    }
     if (!noLocator)
         oss << " locator=" << locatorName.asChar();
     MGlobal::displayInfo(oss.str().c_str());
