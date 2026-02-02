@@ -19,6 +19,8 @@ set(SOURCE_FILES
     PinLocatorNode.h
     MatchMeshCreatePinCmd.cpp
     MatchMeshCreatePinCmd.h
+    MatchMeshDebugClosestFaceCmd.cpp
+    MatchMeshDebugClosestFaceCmd.h
     DualViewportUICmd.cpp
     DualViewportUICmd.h
 )

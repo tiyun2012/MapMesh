@@ -51,10 +51,13 @@ MStatus DualViewportUICmd::doIt(const MArgList& args) {
     oss << "string $mmSrcIcon = \"polyCube.png\";\n";
     oss << "string $mmTgtIcon = \"polySphere.png\";\n";
     oss << "string $mmPinIcon = \"polyCube.png\";\n";
+    oss << "string $mmDbgIcon = \"locator.png\";\n";
     oss << "string $mmMayaLoc = `getenv \"MAYA_LOCATION\"`;\n";
     oss << "if (size($mmMayaLoc)){\n";
     oss << "  string $pinIcon = ($mmMayaLoc + \"/icons/pin.png\");\n";
     oss << "  if (`filetest -f $pinIcon`) $mmPinIcon = $pinIcon;\n";
+    oss << "  string $dbgIcon = ($mmMayaLoc + \"/icons/locator.png\");\n";
+    oss << "  if (`filetest -f $dbgIcon`) $mmDbgIcon = $dbgIcon;\n";
     oss << "}\n";
     oss << "iconTextButton -style \"iconOnly\" -image1 $mmSrcIcon -w 36 -h 36 "
            "-ann \"Set Source Mesh (select a mesh transform)\" "
@@ -65,6 +68,9 @@ MStatus DualViewportUICmd::doIt(const MArgList& args) {
     oss << "iconTextButton -style \"iconOnly\" -image1 $mmPinIcon -w 36 -h 36 "
            "-ann \"Create pin (no selection = origin; one component = both; two components = source/target)\" "
            "-c \"matchMeshCreatePinFromSelection;\" matchMeshCreatePinBtn;\n";
+    oss << "iconTextButton -style \"iconOnly\" -image1 $mmDbgIcon -w 36 -h 36 "
+           "-ann \"Debug closest face on source mesh from selected pin\" "
+           "-c \"matchMeshDebugClosestFace -clear;\" matchMeshDebugClosestBtn;\n";
     oss << "setParent ..;\n";
 
     // Main dual-view workspace control.

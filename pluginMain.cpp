@@ -4,6 +4,7 @@
 
 #include "PinLocatorNode.h"
 #include "MatchMeshCreatePinCmd.h"
+#include "MatchMeshDebugClosestFaceCmd.h"
 #include "DualViewportUICmd.h"
 
 MStatus initializePlugin(MObject obj) {
@@ -27,6 +28,11 @@ MStatus initializePlugin(MObject obj) {
     status = plugin.registerCommand("matchMeshCreatePin",
                                     MatchMeshCreatePinCmd::creator,
                                     MatchMeshCreatePinCmd::newSyntax);
+    CHECK_MSTATUS_AND_RETURN_IT(status);
+
+    status = plugin.registerCommand("matchMeshDebugClosestFace",
+                                    MatchMeshDebugClosestFaceCmd::creator,
+                                    MatchMeshDebugClosestFaceCmd::newSyntax);
     CHECK_MSTATUS_AND_RETURN_IT(status);
 
     status = plugin.registerCommand("matchMeshDualViewUI", DualViewportUICmd::creator, DualViewportUICmd::newSyntax);
@@ -116,6 +122,9 @@ MStatus uninitializePlugin(MObject obj) {
         true, true);
 
     status = plugin.deregisterCommand("matchMeshCreatePin");
+    CHECK_MSTATUS_AND_RETURN_IT(status);
+
+    status = plugin.deregisterCommand("matchMeshDebugClosestFace");
     CHECK_MSTATUS_AND_RETURN_IT(status);
 
     status = plugin.deregisterCommand("matchMeshDualViewUI");
