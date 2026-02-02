@@ -5,6 +5,7 @@
 #include "PinLocatorNode.h"
 #include "MatchMeshCreatePinCmd.h"
 #include "MatchMeshDebugClosestFaceCmd.h"
+#include "MatchMeshMoveFacesCmd.h"
 #include "DualViewportUICmd.h"
 
 MStatus initializePlugin(MObject obj) {
@@ -33,6 +34,11 @@ MStatus initializePlugin(MObject obj) {
     status = plugin.registerCommand("matchMeshDebugClosestFace",
                                     MatchMeshDebugClosestFaceCmd::creator,
                                     MatchMeshDebugClosestFaceCmd::newSyntax);
+    CHECK_MSTATUS_AND_RETURN_IT(status);
+
+    status = plugin.registerCommand("matchMeshMoveFacesAlongPinVector",
+                                    MatchMeshMoveFacesCmd::creator,
+                                    MatchMeshMoveFacesCmd::newSyntax);
     CHECK_MSTATUS_AND_RETURN_IT(status);
 
     status = plugin.registerCommand("matchMeshDualViewUI", DualViewportUICmd::creator, DualViewportUICmd::newSyntax);
@@ -100,6 +106,10 @@ global proc matchMeshCreatePinFromSelection(){
   }
   matchMeshCreatePin -sourceSet "MatchMeshSourceSet" -targetSet "MatchMeshTargetSet";
 }
+
+// Cache Maya install location for UI icon lookup.
+global string $gMatchMeshMayaLoc;
+$gMatchMeshMayaLoc = `getenv "MAYA_LOCATION"`;
 )mel";
     MGlobal::executeCommand(melHelpers, false, true);
 
@@ -125,6 +135,9 @@ MStatus uninitializePlugin(MObject obj) {
     CHECK_MSTATUS_AND_RETURN_IT(status);
 
     status = plugin.deregisterCommand("matchMeshDebugClosestFace");
+    CHECK_MSTATUS_AND_RETURN_IT(status);
+
+    status = plugin.deregisterCommand("matchMeshMoveFacesAlongPinVector");
     CHECK_MSTATUS_AND_RETURN_IT(status);
 
     status = plugin.deregisterCommand("matchMeshDualViewUI");

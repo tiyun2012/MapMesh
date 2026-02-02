@@ -38,6 +38,7 @@ public:
     static MObject aActive;
     static MObject aRadius;
     static MObject aPinType;
+    static MObject aMoveVector;
     static MObject aPartnerMatrix;
 
     enum PinType {

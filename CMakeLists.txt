@@ -21,6 +21,8 @@ set(SOURCE_FILES
     MatchMeshCreatePinCmd.h
     MatchMeshDebugClosestFaceCmd.cpp
     MatchMeshDebugClosestFaceCmd.h
+    MatchMeshMoveFacesCmd.cpp
+    MatchMeshMoveFacesCmd.h
     DualViewportUICmd.cpp
     DualViewportUICmd.h
 )

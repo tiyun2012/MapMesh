@@ -52,12 +52,16 @@ MStatus DualViewportUICmd::doIt(const MArgList& args) {
     oss << "string $mmTgtIcon = \"polySphere.png\";\n";
     oss << "string $mmPinIcon = \"polyCube.png\";\n";
     oss << "string $mmDbgIcon = \"locator.png\";\n";
-    oss << "string $mmMayaLoc = `getenv \"MAYA_LOCATION\"`;\n";
-    oss << "if (size($mmMayaLoc)){\n";
-    oss << "  string $pinIcon = ($mmMayaLoc + \"/icons/pin.png\");\n";
+    oss << "string $mmMoveIcon = \"TypeMoveTool.png\";\n";
+    oss << "global string $gMatchMeshMayaLoc;\n";
+    oss << "if (!size($gMatchMeshMayaLoc)) $gMatchMeshMayaLoc = `getenv \"MAYA_LOCATION\"`;\n";
+    oss << "if (size($gMatchMeshMayaLoc)){\n";
+    oss << "  string $pinIcon = ($gMatchMeshMayaLoc + \"/icons/pin.png\");\n";
     oss << "  if (`filetest -f $pinIcon`) $mmPinIcon = $pinIcon;\n";
-    oss << "  string $dbgIcon = ($mmMayaLoc + \"/icons/locator.png\");\n";
+    oss << "  string $dbgIcon = ($gMatchMeshMayaLoc + \"/icons/locator.png\");\n";
     oss << "  if (`filetest -f $dbgIcon`) $mmDbgIcon = $dbgIcon;\n";
+    oss << "  string $mvIcon = ($gMatchMeshMayaLoc + \"/icons/TypeMoveTool.png\");\n";
+    oss << "  if (`filetest -f $mvIcon`) $mmMoveIcon = $mvIcon;\n";
     oss << "}\n";
     oss << "iconTextButton -style \"iconOnly\" -image1 $mmSrcIcon -w 36 -h 36 "
            "-ann \"Set Source Mesh (select a mesh transform)\" "
@@ -74,6 +78,14 @@ MStatus DualViewportUICmd::doIt(const MArgList& args) {
            "-ann \"Debug closest face on source mesh from selected pin\" "
            "-c \"float $r=`floatField -q -v matchMeshDbgRadius`; matchMeshDebugClosestFace -clear -r $r;\" "
            "matchMeshDebugClosestBtn;\n";
+    oss << "setParent ..;\n";
+    oss << "rowLayout -nc 2 -cw2 60 36 -ct2 \"left\" \"left\";\n";
+    oss << "floatField -w 60 -value 0.1 -precision 3 -ann \"Move step\" matchMeshMoveStep;\n";
+    oss << "iconTextButton -style \"iconOnly\" -image1 $mmMoveIcon -w 36 -h 36 "
+           "-ann \"Move faces on source mesh along source pin vectors\" "
+           "-c \"float $r=`floatField -q -v matchMeshDbgRadius`; float $s=`floatField -q -v matchMeshMoveStep`; "
+           "matchMeshMoveFacesAlongPinVector -r $r -s $s;\" "
+           "matchMeshMoveFacesBtn;\n";
     oss << "setParent ..;\n";
     oss << "setParent ..;\n";
 

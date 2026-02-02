@@ -22,6 +22,7 @@ MString PinLocatorNode::drawRegistrantId("MatchMeshPinRegistrant");
 MObject PinLocatorNode::aActive;
 MObject PinLocatorNode::aRadius;
 MObject PinLocatorNode::aPinType;
+MObject PinLocatorNode::aMoveVector;
 MObject PinLocatorNode::aPartnerMatrix;
 
 void* PinLocatorNode::creator() { return new PinLocatorNode(); }
@@ -44,6 +45,10 @@ MStatus PinLocatorNode::initialize() {
     eAttr.addField("Target", kTarget);
     eAttr.setKeyable(true);
 
+    aMoveVector = nAttr.create("moveVector", "mv", MFnNumericData::k3Double, 0.0, &stat);
+    nAttr.setKeyable(true);
+    nAttr.setStorable(true);
+
     aPartnerMatrix = mAttr.create("partnerMatrix", "pmat", MFnMatrixAttribute::kDouble, &stat);
     mAttr.setStorable(true);
     mAttr.setWritable(true);
@@ -51,6 +56,7 @@ MStatus PinLocatorNode::initialize() {
     addAttribute(aActive);
     addAttribute(aRadius);
     addAttribute(aPinType);
+    addAttribute(aMoveVector);
     addAttribute(aPartnerMatrix);
 
     return MS::kSuccess;

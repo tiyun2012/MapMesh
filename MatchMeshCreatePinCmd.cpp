@@ -340,6 +340,15 @@ MStatus MatchMeshCreatePinCmd::createPinPairAtPoints(const MDagPath& srcMesh,
     MFnDependencyNode fnTgt(tgtShapePath.node());
     fnSrc.findPlug(PinLocatorNode::aPinType, true).setShort(PinLocatorNode::kSource);
     fnTgt.findPlug(PinLocatorNode::aPinType, true).setShort(PinLocatorNode::kTarget);
+    {
+        const MVector moveVec = MVector(tgtPos) - MVector(srcPos);
+        MPlug mvPlug = fnSrc.findPlug(PinLocatorNode::aMoveVector, true);
+        if (mvPlug.numChildren() >= 3) {
+            mvPlug.child(0).setDouble(moveVec.x);
+            mvPlug.child(1).setDouble(moveVec.y);
+            mvPlug.child(2).setDouble(moveVec.z);
+        }
+    }
 
     status = setTransformTranslation(srcXformPath, srcPos);
     if (status != MS::kSuccess) {
