@@ -12,7 +12,6 @@
 #include <maya/MTransformationMatrix.h>
 #include <maya/MFnDependencyNode.h>
 #include <maya/MPlug.h>
-#include <maya/MObjectHandle.h>
 #include <maya/MHardwareRenderer.h>
 #include <maya/MGLFunctionTable.h>
 
@@ -60,6 +59,14 @@ MStatus PinLocatorNode::initialize() {
     addAttribute(aPartnerMatrix);
 
     return MS::kSuccess;
+}
+
+MBoundingBox PinLocatorNode::boundingBox() const {
+    float radius = 1.0f;
+    MPlug rPlug(thisMObject(), PinLocatorNode::aRadius);
+    rPlug.getValue(radius);
+    const double r = radius;
+    return MBoundingBox(MPoint(-r, -r, -r), MPoint(r, r, r));
 }
 
 void PinLocatorNode::draw(M3dView& view,
@@ -167,8 +174,9 @@ void PinDrawOverride::addUIDrawables(const MDagPath& objPath,
                                      const MUserData* userData) {
     const PinUserData* data = dynamic_cast<const PinUserData*>(userData);
     if (!data) return;
-    const unsigned int pickId = MObjectHandle(objPath.node()).hashCode();
-    dm.beginDrawable(MHWRender::MUIDrawManager::kSelectable, pickId);
+    // Let Maya manage the selection id for the object. (Providing an arbitrary pickId
+    // can break viewport selection on some Maya versions.)
+    dm.beginDrawable(MHWRender::MUIDrawManager::kSelectable);
     dm.setColor(data->highlight ? brightenColor(data->color) : data->color);
     // Draw a locator-style cross (better for selection/readability than a sphere).
     const double r = data->radius;

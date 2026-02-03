@@ -27,8 +27,15 @@ public:
               M3dView::DisplayStyle style,
               M3dView::DisplayStatus status) override;
 
+    // Make sure Maya can compute a selection region for this custom locator.
+    // (Without a valid bound, the node can be visible but hard/unselectable in the viewport.)
+    bool isBounded() const override { return true; }
+    MBoundingBox boundingBox() const override;
+
+    // Prefer being selectable even if the user disables the "Locators" selection mask.
+    // If you *want* it to obey the Locators mask, switch this back to kSelectLocators.
     MSelectionMask getShapeSelectionMask() const override {
-        return MSelectionMask::kSelectLocators;
+        return MSelectionMask::kSelectObjectsMask;
     }
 
     static MTypeId id;
