@@ -17,6 +17,7 @@ Maya: MayaQWidgetDockableMixin + PySide6
 
 from PySide6 import QtWidgets, QtCore, QtGui
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
+import maya.cmds as cmds
 
 
 # ------------------------------------------------------------
@@ -680,6 +681,8 @@ class GroupWidget(QtWidgets.QFrame):
 class LayerModifierTool(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Stable objectName so we can dock this workspaceControl next to MatchMesh tools.
+        self.setObjectName("MatchMeshLayerModifiers")
         self.setWindowTitle("Layer Modifiers (PySide6)")
         self.resize(380, 540)
         self.group_count = 0
@@ -793,6 +796,13 @@ class LayerModifierTool(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 # ------------------------------------------------------------
 def show_ui():
     global layer_modifier_ui
+    # If a previous workspaceControl still exists (common in Maya), delete it.
+    ws = "MatchMeshLayerModifiersWorkspaceControl"
+    if cmds.workspaceControl(ws, exists=True):
+        try:
+            cmds.deleteUI(ws)
+        except Exception:
+            pass
     try:
         layer_modifier_ui.close()
         layer_modifier_ui.deleteLater()
@@ -801,6 +811,28 @@ def show_ui():
 
     layer_modifier_ui = LayerModifierTool()
     layer_modifier_ui.show(dockable=True)
+
+    def _dock_beside_matchmesh():
+        my_ws = layer_modifier_ui.objectName() + "WorkspaceControl"
+        if not cmds.workspaceControl(my_ws, exists=True):
+            return
+
+        # Prefer docking next to the MatchMesh tools shelf/toolbar if it exists.
+        if cmds.workspaceControl("MatchMeshToolbarControl", exists=True):
+            try:
+                cmds.workspaceControl(my_ws, e=True, dockToControl=("MatchMeshToolbarControl", "right"))
+                return
+            except Exception:
+                pass
+
+        # Fallback: dock next to the dual view control if present.
+        if cmds.workspaceControl("MatchMeshDualViewControl", exists=True):
+            try:
+                cmds.workspaceControl(my_ws, e=True, dockToControl=("MatchMeshDualViewControl", "right"))
+            except Exception:
+                pass
+
+    QtCore.QTimer.singleShot(0, _dock_beside_matchmesh)
 
 
 show_ui()
