@@ -1,0 +1,20 @@
+// 1) Load your compiled plug-in (.mll/.so/.bundle)
+loadPlugin "locatorFollowDeformer";
+
+// 2) Create test geo + locator
+polySphere -r 2;
+spaceLocator;
+
+// 3) Apply deformer to the mesh
+select -r pSphere1;
+deformer -type "locatorFollowDeformer";
+
+// 4) Connect locator worldMatrix to deformer targetMatrix
+connectAttr -f locator1.worldMatrix[0] locatorFollowDeformer1.targetMatrix;
+
+// 5) Tune
+setAttr locatorFollowDeformer1.radius 3.0;
+setAttr locatorFollowDeformer1.strength 1.0;
+
+// Now move locator1 and nearby vertices will follow.
+// You can paint weights on locatorFollowDeformer1 using Artisan.
