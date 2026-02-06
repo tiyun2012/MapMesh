@@ -1,0 +1,112 @@
+\hypertarget{class_point_query}{}\doxysection{Point\+Query Class Reference}
+\label{class_point_query}\index{PointQuery@{PointQuery}}
+
+
+\mbox{\hyperlink{class_point_query}{Point\+Query}} class; contains query functions and mesh object.  
+
+
+
+
+{\ttfamily \#include $<$Point\+Query.\+h$>$}
+
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{class_point_query_a113fa1f7c532e03c6950d4f541b379b0}{Point\+Query}} (const \mbox{\hyperlink{class_mesh}{Mesh}} \&mesh)
+\begin{DoxyCompactList}\small\item\em Construct a new Point Query\+:\+: Point Query object. \end{DoxyCompactList}\item 
+Eigen\+::\+Vector3d \mbox{\hyperlink{class_point_query_a6766679531a7548084e502c5413acb60}{get\+Closest\+Vertex}} (const Eigen\+::\+Vector3d \&query\+Point, float \&min\+Dist)
+\begin{DoxyCompactList}\small\item\em get the closest vertex to the query point given max radius. if can\textquotesingle{}t find anything else, return query point \end{DoxyCompactList}\item 
+Eigen\+::\+Vector3d \mbox{\hyperlink{class_point_query_ae6ee51e21813b98cb2518a180e712013}{closest\+Point\+On\+Triangle}} (const \mbox{\hyperlink{struct_face}{Face}} \&face, const Eigen\+::\+Vector3d \&query\+Point)
+\begin{DoxyCompactList}\small\item\em Get closest point on given face. \mbox{\hyperlink{struct_face}{Face}} object will be triangular. // \href{https://www.gamedev.net/forums/topic/552906-closest-point-on-triangle/}{\texttt{ https\+://www.\+gamedev.\+net/forums/topic/552906-\/closest-\/point-\/on-\/triangle/}}. \end{DoxyCompactList}\item 
+Eigen\+::\+Vector3d \mbox{\hyperlink{class_point_query_a030a8a32333e392c9252e469dc845afe}{operator()}} (const Eigen\+::\+Vector3d \&query\+Point, float \&max\+Dist)
+\begin{DoxyCompactList}\small\item\em Main query function. First check within object vertices, then check within object faces. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\mbox{\hyperlink{class_point_query}{Point\+Query}} class; contains query functions and mesh object. 
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{class_point_query_a113fa1f7c532e03c6950d4f541b379b0}\label{class_point_query_a113fa1f7c532e03c6950d4f541b379b0}} 
+\index{PointQuery@{PointQuery}!PointQuery@{PointQuery}}
+\index{PointQuery@{PointQuery}!PointQuery@{PointQuery}}
+\doxysubsubsection{\texorpdfstring{PointQuery()}{PointQuery()}}
+{\footnotesize\ttfamily Point\+Query\+::\+Point\+Query (\begin{DoxyParamCaption}\item[{const \mbox{\hyperlink{class_mesh}{Mesh}} \&}]{mesh }\end{DoxyParamCaption})}
+
+
+
+Construct a new Point Query\+:\+: Point Query object. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em mesh} & \mbox{\hyperlink{class_mesh}{Mesh}} object \\
+\hline
+\end{DoxyParams}
+
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{class_point_query_ae6ee51e21813b98cb2518a180e712013}\label{class_point_query_ae6ee51e21813b98cb2518a180e712013}} 
+\index{PointQuery@{PointQuery}!closestPointOnTriangle@{closestPointOnTriangle}}
+\index{closestPointOnTriangle@{closestPointOnTriangle}!PointQuery@{PointQuery}}
+\doxysubsubsection{\texorpdfstring{closestPointOnTriangle()}{closestPointOnTriangle()}}
+{\footnotesize\ttfamily Eigen\+::\+Vector3d Point\+Query\+::closest\+Point\+On\+Triangle (\begin{DoxyParamCaption}\item[{const \mbox{\hyperlink{struct_face}{Face}} \&}]{face,  }\item[{const Eigen\+::\+Vector3d \&}]{query\+Point }\end{DoxyParamCaption})}
+
+
+
+Get closest point on given face. \mbox{\hyperlink{struct_face}{Face}} object will be triangular. // \href{https://www.gamedev.net/forums/topic/552906-closest-point-on-triangle/}{\texttt{ https\+://www.\+gamedev.\+net/forums/topic/552906-\/closest-\/point-\/on-\/triangle/}}. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em face} & \mbox{\hyperlink{struct_face}{Face}} object \\
+\hline
+{\em query\+Point} & Query point \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+Eigen\+::\+Vector3d Closest point 
+\end{DoxyReturn}
+\mbox{\Hypertarget{class_point_query_a6766679531a7548084e502c5413acb60}\label{class_point_query_a6766679531a7548084e502c5413acb60}} 
+\index{PointQuery@{PointQuery}!getClosestVertex@{getClosestVertex}}
+\index{getClosestVertex@{getClosestVertex}!PointQuery@{PointQuery}}
+\doxysubsubsection{\texorpdfstring{getClosestVertex()}{getClosestVertex()}}
+{\footnotesize\ttfamily Eigen\+::\+Vector3d Point\+Query\+::get\+Closest\+Vertex (\begin{DoxyParamCaption}\item[{const Eigen\+::\+Vector3d \&}]{query\+Point,  }\item[{float \&}]{min\+Dist }\end{DoxyParamCaption})}
+
+
+
+get the closest vertex to the query point given max radius. if can\textquotesingle{}t find anything else, return query point 
+
+
+\begin{DoxyParams}{Parameters}
+{\em query\+Point} & Query point \\
+\hline
+{\em min\+Dist} & Search radius \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+Eigen\+::\+Vector3d Closest point 
+\end{DoxyReturn}
+\mbox{\Hypertarget{class_point_query_a030a8a32333e392c9252e469dc845afe}\label{class_point_query_a030a8a32333e392c9252e469dc845afe}} 
+\index{PointQuery@{PointQuery}!operator()@{operator()}}
+\index{operator()@{operator()}!PointQuery@{PointQuery}}
+\doxysubsubsection{\texorpdfstring{operator()()}{operator()()}}
+{\footnotesize\ttfamily Eigen\+::\+Vector3d Point\+Query\+::operator() (\begin{DoxyParamCaption}\item[{const Eigen\+::\+Vector3d \&}]{query\+Point,  }\item[{float \&}]{max\+Dist }\end{DoxyParamCaption})}
+
+
+
+Main query function. First check within object vertices, then check within object faces. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em query\+Point} & Query point \\
+\hline
+{\em max\+Dist} & Max radius \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+Eigen\+::\+Vector3d Closest point 
+\end{DoxyReturn}
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+/\+Users/burakertekin/\+Desktop/closest\+\_\+point\+\_\+on\+\_\+mesh/include/Point\+Query.\+h\item 
+/\+Users/burakertekin/\+Desktop/closest\+\_\+point\+\_\+on\+\_\+mesh/src/Point\+Query.\+cpp\end{DoxyCompactItemize}

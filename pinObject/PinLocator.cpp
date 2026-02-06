@@ -15,6 +15,8 @@
 #include <maya/MPlug.h>
 #include <maya/MHardwareRenderer.h>
 #include <maya/MGLFunctionTable.h>
+#include <cmath>
+#include <algorithm>
 
 // Initialize static members
 MTypeId PinLocatorNode::id(0x0012F2A2);
@@ -27,6 +29,7 @@ MObject PinLocatorNode::aPinType;
 MObject PinLocatorNode::aMoveVector;
 MObject PinLocatorNode::aPartnerMatrix;
 MObject PinLocatorNode::aUV;
+MObject PinLocatorNode::aLineScale;
 
 void* PinLocatorNode::creator() { return new PinLocatorNode(); }
 
@@ -79,6 +82,14 @@ MStatus PinLocatorNode::initialize() {
     nAttr.setStorable(true);
     addAttribute(aUV);
 
+    // Line length scale (relative to radius). Default 2.0 => line length = 2 * radius.
+    aLineScale = nAttr.create("lineScale", "ls", MFnNumericData::kDouble, 2.0, &stat);
+    if (stat != MS::kSuccess) return stat;
+    nAttr.setKeyable(true);
+    nAttr.setStorable(true);
+    nAttr.setMin(0.0);
+    addAttribute(aLineScale);
+
     return MS::kSuccess;
 }
 
@@ -86,8 +97,16 @@ MBoundingBox PinLocatorNode::boundingBox() const {
     float radius = 0.3f;
     MPlug rPlug(thisMObject(), PinLocatorNode::aRadius);
     rPlug.getValue(radius);
+    double lineScale = 2.0;
+    MPlug lsPlug(thisMObject(), PinLocatorNode::aLineScale);
+    if (!lsPlug.isNull())
+        lsPlug.getValue(lineScale);
+    if (lineScale < 0.0)
+        lineScale = 0.0;
     const double r = radius;
-    return MBoundingBox(MPoint(-r, -r, -r), MPoint(r, r, r));
+    const double lineLen = r * lineScale;
+    const double rx = std::max(r, lineLen);
+    return MBoundingBox(MPoint(-rx, -r, -r), MPoint(rx, r, r));
 }
 
 void PinLocatorNode::draw(M3dView& view,
@@ -100,6 +119,12 @@ void PinLocatorNode::draw(M3dView& view,
     float radius = 0.3f;
     MPlug rPlug(path.node(), PinLocatorNode::aRadius);
     rPlug.getValue(radius);
+    double lineScale = 2.0;
+    MPlug lsPlug(path.node(), PinLocatorNode::aLineScale);
+    if (!lsPlug.isNull())
+        lsPlug.getValue(lineScale);
+    if (lineScale < 0.0)
+        lineScale = 0.0;
     short pinType = 0;
     MPlug tPlug(path.node(), PinLocatorNode::aPinType);
     tPlug.getValue(pinType);
@@ -121,11 +146,27 @@ void PinLocatorNode::draw(M3dView& view,
 
     view.beginGL();
     glFT->glColor3f(col.r, col.g, col.b);
-    glFT->glBegin(MGL_LINES);
-    glFT->glVertex3f(-radius, 0.0f, 0.0f); glFT->glVertex3f(radius, 0.0f, 0.0f);
-    glFT->glVertex3f(0.0f, -radius, 0.0f); glFT->glVertex3f(0.0f, radius, 0.0f);
-    glFT->glVertex3f(0.0f, 0.0f, -radius); glFT->glVertex3f(0.0f, 0.0f, radius);
+
+    // Circle in YZ plane, normal along +X.
+    const int segments = 32;
+    const double r = radius;
+    const double lineLen = r * lineScale;
+    const double twoPi = 6.28318530717958647692;
+    glFT->glBegin(MGL_LINE_LOOP);
+    for (int i = 0; i < segments; ++i) {
+        const double t = twoPi * static_cast<double>(i) / static_cast<double>(segments);
+        const float y = static_cast<float>(std::cos(t) * r);
+        const float z = static_cast<float>(std::sin(t) * r);
+        glFT->glVertex3f(0.0f, y, z);
+    }
     glFT->glEnd();
+
+    // Normal line along +X.
+    glFT->glBegin(MGL_LINES);
+    glFT->glVertex3f(0.0f, 0.0f, 0.0f);
+    glFT->glVertex3f(static_cast<float>(lineLen), 0.0f, 0.0f);
+    glFT->glEnd();
+
     view.endGL();
 }
 
@@ -158,12 +199,20 @@ MBoundingBox PinDrawOverride::boundingBox(const MDagPath& objPath,
     MStatus status;
     MFnDependencyNode fn(objPath.node(), &status);
     float radius = 0.3f;
+    double lineScale = 2.0;
     if (status == MS::kSuccess) {
         MPlug rPlug(objPath.node(), PinLocatorNode::aRadius);
         rPlug.getValue(radius);
+        MPlug lsPlug(objPath.node(), PinLocatorNode::aLineScale);
+        if (!lsPlug.isNull())
+            lsPlug.getValue(lineScale);
     }
+    if (lineScale < 0.0)
+        lineScale = 0.0;
     const double r = radius;
-    return MBoundingBox(MPoint(-r, -r, -r), MPoint(r, r, r));
+    const double lineLen = r * lineScale;
+    const double rx = std::max(r, lineLen);
+    return MBoundingBox(MPoint(-rx, -r, -r), MPoint(rx, r, r));
 }
 
 MUserData* PinDrawOverride::prepareForDraw(const MDagPath& objPath,
@@ -202,9 +251,26 @@ void PinDrawOverride::addUIDrawables(const MDagPath& objPath,
     dm.setColor(data->highlight ? brightenColor(data->color) : data->color);
     
     const double r = data->radius;
-    dm.line(MPoint(-r, 0.0, 0.0), MPoint(r, 0.0, 0.0));
-    dm.line(MPoint(0.0, -r, 0.0), MPoint(0.0, r, 0.0));
-    dm.line(MPoint(0.0, 0.0, -r), MPoint(0.0, 0.0, r));
+    double lineScale = 2.0;
+    MPlug lsPlug(objPath.node(), PinLocatorNode::aLineScale);
+    if (!lsPlug.isNull())
+        lsPlug.getValue(lineScale);
+    if (lineScale < 0.0)
+        lineScale = 0.0;
+    const double lineLen = r * lineScale;
+    // Circle in YZ plane, normal along +X.
+    const int segments = 32;
+    const double twoPi = 6.28318530717958647692;
+    for (int i = 0; i < segments; ++i) {
+        const double t0 = twoPi * static_cast<double>(i) / static_cast<double>(segments);
+        const double t1 = twoPi * static_cast<double>(i + 1) / static_cast<double>(segments);
+        const MPoint p0(0.0, std::cos(t0) * r, std::sin(t0) * r);
+        const MPoint p1(0.0, std::cos(t1) * r, std::sin(t1) * r);
+        dm.line(p0, p1);
+    }
+
+    // Normal line along +X.
+    dm.line(MPoint(0.0, 0.0, 0.0), MPoint(lineLen, 0.0, 0.0));
     
     dm.endDrawable();
 }

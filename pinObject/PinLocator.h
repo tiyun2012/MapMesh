@@ -46,6 +46,7 @@ public:
     static MObject aMoveVector;
     static MObject aPartnerMatrix;
     static MObject aUV;
+    static MObject aLineScale;
 
     enum PinType {
         kSource = 0,

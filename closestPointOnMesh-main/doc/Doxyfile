@@ -1,0 +1,6 @@
+PROJECT_NAME = 'Closest Point On Mesh'
+INPUT = ../include ../src
+OUTPUT_DIRECTORY = out
+GENERATE_HTML = YES
+HTML_OUTPUT = html/
+HTML_FILE_EXTENSION = .html

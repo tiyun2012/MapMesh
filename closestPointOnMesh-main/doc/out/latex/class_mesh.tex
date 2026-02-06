@@ -1,0 +1,138 @@
+\hypertarget{class_mesh}{}\doxysection{Mesh Class Reference}
+\label{class_mesh}\index{Mesh@{Mesh}}
+
+
+\mbox{\hyperlink{class_mesh}{Mesh}} class; contains std\+::vectors of vertices and faces of the .obj Getter/setter functions needed to populate mesh object and read\+Obj function to read in mesh data from .obj file.  
+
+
+
+
+{\ttfamily \#include $<$Mesh.\+h$>$}
+
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{class_mesh_a17bae14f4800df6cfc63f2b54fb7897e}\label{class_mesh_a17bae14f4800df6cfc63f2b54fb7897e}} 
+Eigen\+::\+Vector3d \& {\bfseries get\+Vertex} (const int \&id)
+\item 
+\mbox{\Hypertarget{class_mesh_a4505fd5f2469967df098fe28dc1f42ee}\label{class_mesh_a4505fd5f2469967df098fe28dc1f42ee}} 
+std\+::vector$<$ Eigen\+::\+Vector3d $>$ {\bfseries get\+Vertices} ()
+\item 
+void \mbox{\hyperlink{class_mesh_ac2c358ccac25d2eacb5e31b5a4a69d49}{add\+Vertex}} (const Eigen\+::\+Vector3d \&vertex)
+\begin{DoxyCompactList}\small\item\em Add given vertex to vertices vector. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{class_mesh_a74fa37e31a1bff85448ec9df5355499b}{add\+Vertex}} (const double x, const double y, const double z)
+\begin{DoxyCompactList}\small\item\em Get point data to init Eigen\+::\+Vector3d vertex, later to be added in vertices vector Polymorphed function added for readability. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{class_mesh_ad69360e16b6a46883be819e515398496}\label{class_mesh_ad69360e16b6a46883be819e515398496}} 
+\mbox{\hyperlink{struct_face}{Face}} {\bfseries get\+Face} (const int \&id)
+\item 
+\mbox{\Hypertarget{class_mesh_abec5fade908de4f81a2ed871baffcd69}\label{class_mesh_abec5fade908de4f81a2ed871baffcd69}} 
+std\+::vector$<$ \mbox{\hyperlink{struct_face}{Face}} $>$ {\bfseries get\+Faces} ()
+\item 
+void \mbox{\hyperlink{class_mesh_a2cca0289b14623a1b4df9940e6be2588}{add\+Face}} (const \mbox{\hyperlink{struct_face}{Face}} \&face)
+\begin{DoxyCompactList}\small\item\em Add given face to faces vector. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{class_mesh_affb65486208f25b4beb5ddbcd123eb57}{add\+Face}} (const int \&id, const Eigen\+::\+Vector3d \&v1, const Eigen\+::\+Vector3d \&v2, const Eigen\+::\+Vector3d \&v3)
+\begin{DoxyCompactList}\small\item\em Get vertices to init \mbox{\hyperlink{struct_face}{Face}} objects, later to be added in faces vector Polymorphed function added for readability. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{class_mesh_ac9dd91b2eeadc496d40a78d19740a505}{read\+Obj}} (const char $\ast$filename)
+\begin{DoxyCompactList}\small\item\em Read-\/in .obj file and serialize mesh data in vertices and faces vectors // \href{https://github.com/tinyobjloader/tinyobjloader/blob/master/loader_example.cc}{\texttt{ https\+://github.\+com/tinyobjloader/tinyobjloader/blob/master/loader\+\_\+example.\+cc}} Assuming we are using triangulated mesh. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\mbox{\hyperlink{class_mesh}{Mesh}} class; contains std\+::vectors of vertices and faces of the .obj Getter/setter functions needed to populate mesh object and read\+Obj function to read in mesh data from .obj file. 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{class_mesh_a2cca0289b14623a1b4df9940e6be2588}\label{class_mesh_a2cca0289b14623a1b4df9940e6be2588}} 
+\index{Mesh@{Mesh}!addFace@{addFace}}
+\index{addFace@{addFace}!Mesh@{Mesh}}
+\doxysubsubsection{\texorpdfstring{addFace()}{addFace()}\hspace{0.1cm}{\footnotesize\ttfamily [1/2]}}
+{\footnotesize\ttfamily void Mesh\+::add\+Face (\begin{DoxyParamCaption}\item[{const \mbox{\hyperlink{struct_face}{Face}} \&}]{face }\end{DoxyParamCaption})}
+
+
+
+Add given face to faces vector. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em face} & \mbox{\hyperlink{struct_face}{Face}} object \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{class_mesh_affb65486208f25b4beb5ddbcd123eb57}\label{class_mesh_affb65486208f25b4beb5ddbcd123eb57}} 
+\index{Mesh@{Mesh}!addFace@{addFace}}
+\index{addFace@{addFace}!Mesh@{Mesh}}
+\doxysubsubsection{\texorpdfstring{addFace()}{addFace()}\hspace{0.1cm}{\footnotesize\ttfamily [2/2]}}
+{\footnotesize\ttfamily void Mesh\+::add\+Face (\begin{DoxyParamCaption}\item[{const int \&}]{id,  }\item[{const Eigen\+::\+Vector3d \&}]{v1,  }\item[{const Eigen\+::\+Vector3d \&}]{v2,  }\item[{const Eigen\+::\+Vector3d \&}]{v3 }\end{DoxyParamCaption})}
+
+
+
+Get vertices to init \mbox{\hyperlink{struct_face}{Face}} objects, later to be added in faces vector Polymorphed function added for readability. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em id} & \mbox{\hyperlink{struct_face}{Face}} id \\
+\hline
+{\em v1} & Point 1 \\
+\hline
+{\em v2} & Point 2 \\
+\hline
+{\em v3} & Point 3 \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{class_mesh_a74fa37e31a1bff85448ec9df5355499b}\label{class_mesh_a74fa37e31a1bff85448ec9df5355499b}} 
+\index{Mesh@{Mesh}!addVertex@{addVertex}}
+\index{addVertex@{addVertex}!Mesh@{Mesh}}
+\doxysubsubsection{\texorpdfstring{addVertex()}{addVertex()}\hspace{0.1cm}{\footnotesize\ttfamily [1/2]}}
+{\footnotesize\ttfamily void Mesh\+::add\+Vertex (\begin{DoxyParamCaption}\item[{const double}]{x,  }\item[{const double}]{y,  }\item[{const double}]{z }\end{DoxyParamCaption})}
+
+
+
+Get point data to init Eigen\+::\+Vector3d vertex, later to be added in vertices vector Polymorphed function added for readability. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em x} & X axis coord \\
+\hline
+{\em y} & Y axis coord \\
+\hline
+{\em z} & Z axis coord \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{class_mesh_ac2c358ccac25d2eacb5e31b5a4a69d49}\label{class_mesh_ac2c358ccac25d2eacb5e31b5a4a69d49}} 
+\index{Mesh@{Mesh}!addVertex@{addVertex}}
+\index{addVertex@{addVertex}!Mesh@{Mesh}}
+\doxysubsubsection{\texorpdfstring{addVertex()}{addVertex()}\hspace{0.1cm}{\footnotesize\ttfamily [2/2]}}
+{\footnotesize\ttfamily void Mesh\+::add\+Vertex (\begin{DoxyParamCaption}\item[{const Eigen\+::\+Vector3d \&}]{vertex }\end{DoxyParamCaption})}
+
+
+
+Add given vertex to vertices vector. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em vertex} & Eigen\+::\+Vector3d point to be added \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{class_mesh_ac9dd91b2eeadc496d40a78d19740a505}\label{class_mesh_ac9dd91b2eeadc496d40a78d19740a505}} 
+\index{Mesh@{Mesh}!readObj@{readObj}}
+\index{readObj@{readObj}!Mesh@{Mesh}}
+\doxysubsubsection{\texorpdfstring{readObj()}{readObj()}}
+{\footnotesize\ttfamily bool Mesh\+::read\+Obj (\begin{DoxyParamCaption}\item[{const char $\ast$}]{filename }\end{DoxyParamCaption})}
+
+
+
+Read-\/in .obj file and serialize mesh data in vertices and faces vectors // \href{https://github.com/tinyobjloader/tinyobjloader/blob/master/loader_example.cc}{\texttt{ https\+://github.\+com/tinyobjloader/tinyobjloader/blob/master/loader\+\_\+example.\+cc}} Assuming we are using triangulated mesh. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em filename} & Full file path \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+true Successful .obj load 
+
+false Fail if can\textquotesingle{}t load .obj 
+\end{DoxyReturn}
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+/\+Users/burakertekin/\+Desktop/closest\+\_\+point\+\_\+on\+\_\+mesh/include/Mesh.\+h\item 
+/\+Users/burakertekin/\+Desktop/closest\+\_\+point\+\_\+on\+\_\+mesh/src/Mesh.\+cpp\end{DoxyCompactItemize}

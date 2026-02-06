@@ -1,0 +1,4 @@
+﻿PySide6
+pyqtgraph
+numpy
+PyOpenGL

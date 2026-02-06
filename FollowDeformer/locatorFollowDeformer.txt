@@ -7,14 +7,24 @@ spaceLocator;
 
 // 3) Apply deformer to the mesh
 select -r pSphere1;
-deformer -type "locatorFollowDeformer";
+string $def[] = `deformer -type "locatorFollowDeformer"`;
+string $node = $def[0];
 
 // 4) Connect locator worldMatrix to deformer targetMatrix
-connectAttr -f locator1.worldMatrix[0] locatorFollowDeformer1.targetMatrix;
+connectAttr -f locator1.worldMatrix[0] ($node + ".targetMatrix");
+
+// 4.5) Bind (THIS is the missing step for “no-jump follow”)
+// Capture current locator matrix as bindMatrix
+float $m[16] = `getAttr locator1.worldMatrix[0]`;
+setAttr -type "matrix" ($node + ".bindMatrix")
+    $m[0] $m[1] $m[2] $m[3]
+    $m[4] $m[5] $m[6] $m[7]
+    $m[8] $m[9] $m[10] $m[11]
+    $m[12] $m[13] $m[14] $m[15];
 
 // 5) Tune
-setAttr locatorFollowDeformer1.radius 3.0;
-setAttr locatorFollowDeformer1.strength 1.0;
+setAttr ($node + ".radius") 3.0;
+setAttr ($node + ".strength") 1.0;
 
-// Now move locator1 and nearby vertices will follow.
-// You can paint weights on locatorFollowDeformer1 using Artisan.
+// Now: moving locator1 will move nearby vertices by the locator’s delta.
+// Paint weights on the deformer as usual.
